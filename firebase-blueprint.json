@@ -1,0 +1,42 @@
+{
+  "entities": {
+    "Message": {
+      "title": "Message",
+      "description": "A chat message",
+      "type": "object",
+      "properties": {
+        "text": { "type": "string" },
+        "senderId": { "type": "string" },
+        "senderName": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" },
+        "type": { "type": "string", "enum": ["text", "emoji", "sticker"] },
+        "roomId": { "type": "string" },
+        "isGhost": { "type": "boolean" }
+      },
+      "required": ["text", "senderId", "senderName", "timestamp", "type", "roomId"]
+    },
+    "User": {
+      "title": "User",
+      "description": "A registered user",
+      "type": "object",
+      "properties": {
+        "displayName": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "lastActive": { "type": "string", "format": "date-time" },
+        "isOnline": { "type": "boolean" }
+      },
+      "required": ["displayName"]
+    },
+    "Room": { ... },
+    "Call": { ... }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User profiles"
+    },
+    "/rooms/{roomId}": { ... },
+    "/rooms/{roomId}/messages/{messageId}": { ... },
+    "/calls/{callId}": { ... }
+  }
+}

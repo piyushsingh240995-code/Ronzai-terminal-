@@ -1,0 +1,72 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Default deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    // Validation Blueprints
+    function isValidRoom(data) {
+      return data.keys().hasAll(['name', 'createdAt', 'createdBy']) &&
+             data.name is string && data.name.size() <= 64;
+    }
+
+    function isValidUser(data) {
+      return data.keys().hasAll(['displayName', 'photoURL', 'isOnline']) &&
+             data.displayName is string && data.displayName.size() <= 64;
+    }
+
+    function isValidMessage(data) {
+      return data.keys().hasAll(['text', 'senderId', 'senderName', 'timestamp', 'type']) &&
+             data.text is string && data.text.size() <= 3000 &&
+             data.senderId == request.auth.uid;
+    }
+
+    function isValidCall(data) {
+      return data.keys().hasAll(['type', 'from', 'to', 'data', 'timestamp']) &&
+             data.type in ['offer', 'answer', 'candidate'] &&
+             data.from == request.auth.uid &&
+             data.timestamp == request.time;
+    }
+
+    // Rules
+    match /users/{userId} {
+      allow read: if isSignedIn();
+      allow write: if isOwner(userId);
+    }
+
+    match /rooms/{roomId} {
+      allow read: if isSignedIn();
+      allow write: if isSignedIn();
+    }
+
+    match /rooms/{roomId}/messages/{messageId} {
+      allow list, get: if isSignedIn();
+      allow create: if isSignedIn() && isValidMessage(incoming());
+      allow delete: if isSignedIn() && (resource.data.senderId == request.auth.uid || roomId == 'public');
+    }
+
+    match /calls/{callId} {
+      allow read, delete: if isSignedIn() && (resource.data.to == request.auth.uid || resource.data.from == request.auth.uid);
+      allow create: if isSignedIn() && isValidCall(incoming());
+    }
+  }
+}

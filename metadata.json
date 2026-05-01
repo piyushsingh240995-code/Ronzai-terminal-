@@ -1,0 +1,8 @@
+{
+  "name": "RONZAI Terminal",
+  "description": "Secure, ghost-protocol enabled communication terminal with real-time syncing and industrial design.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}
