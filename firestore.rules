@@ -35,38 +35,36 @@ service cloud.firestore {
     }
 
     function isValidMessage(data) {
-      return data.keys().hasAll(['text', 'senderId', 'senderName', 'timestamp', 'type']) &&
+      return data.keys().hasAll(['text', 'senderId', 'senderName', 'timestamp', 'type', 'isGhost']) &&
+             data.keys().size() == 6 &&
              data.text is string && data.text.size() <= 3000 &&
              data.senderId == request.auth.uid;
-    }
-
-    function isValidCall(data) {
-      return data.keys().hasAll(['type', 'from', 'to', 'data', 'timestamp']) &&
-             data.type in ['offer', 'answer', 'candidate'] &&
-             data.from == request.auth.uid &&
-             data.timestamp == request.time;
     }
 
     // Rules
     match /users/{userId} {
       allow read: if isSignedIn();
-      allow write: if isOwner(userId);
+      allow write: if isOwner(userId) && isValidUser(incoming());
     }
 
     match /rooms/{roomId} {
       allow read: if isSignedIn();
-      allow write: if isSignedIn();
+      // Allow creation of the public room if it's correctly shaped
+      allow create: if isSignedIn() && (
+        (roomId == 'public' && incoming().name == 'Public Square' && incoming().createdBy == 'system') ||
+        (roomId != 'public' && isValidRoom(incoming()) && incoming().createdBy == request.auth.uid)
+      );
+      // Only allow minor updates or restrict entirely to prevent hijacking
+      allow update: if isSignedIn() && (
+        (roomId == 'public' && incoming().name == 'Public Square') ||
+        (roomId != 'public' && isOwner(resource.data.createdBy) && isValidRoom(incoming()))
+      );
     }
 
     match /rooms/{roomId}/messages/{messageId} {
       allow list, get: if isSignedIn();
       allow create: if isSignedIn() && isValidMessage(incoming());
-      allow delete: if isSignedIn() && (resource.data.senderId == request.auth.uid || roomId == 'public');
-    }
-
-    match /calls/{callId} {
-      allow read, delete: if isSignedIn() && (resource.data.to == request.auth.uid || resource.data.from == request.auth.uid);
-      allow create: if isSignedIn() && isValidCall(incoming());
+      allow delete: if isSignedIn() && resource.data.senderId == request.auth.uid;
     }
   }
 }
